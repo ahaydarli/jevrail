@@ -235,7 +235,7 @@ You need Node 20 or newer, and a Typesafe API key for Jev.
 - **API key:** Claude Code asks for your Typesafe API key when the plugin is enabled.
   - The input is masked and stored in your system's credential store (the macOS Keychain, for example), never in a settings file.
   - The key belongs to you, not to a project, so you enter it once.
-  - Change it under `/plugin` → Installed → jevrail → **Configure options**.
+  - Set or change it with `/plugin configure jevrail@jevrail`, or under `/plugin` → Installed → jevrail → **Configure options**.
 - **Without the key prompt:** leave it empty and set `TYPESAFE_API_KEY` in the environment, the project's `.env` or `~/.config/jevrail/.env`. With no key at all, the Jev checks are off, the local ones still work, and each session starts with a warning.
 - **No global command:** the plugin doesn't add a `jevrail` command to your shell, and doesn't need to, because its hooks run from the plugin's own folder. Inside Claude Code, `/jevrail:log` shows recent decisions. For `jevrail check` in a terminal, see [From npm](#from-npm-the-cli-or-hooks-without-the-plugin).
 
