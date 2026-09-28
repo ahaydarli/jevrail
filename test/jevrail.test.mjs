@@ -347,7 +347,7 @@ test("shared Claude install enables the plugin and drops old npx hooks", async (
   const shared = JSON.parse(await readFile(file, "utf8"));
   assert.deepEqual(shared.enabledPlugins, { "other@market": true, [PLUGIN_ID]: true });
   assert.equal(shared.extraKnownMarketplaces.jevrail.source.repo, "ahaydarli/jevrail");
-  assert.deepEqual(shared.hooks, {});
+  assert.equal(shared.hooks, undefined);
   assert.equal(await pluginEnabled(root, await temp()), true);
 
   await uninstall("claude", root);

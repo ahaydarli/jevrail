@@ -99,7 +99,9 @@ function removeFrom(config) {
     if (kept.length) hooks[event] = kept;
     else delete hooks[event];
   }
-  return { ...config, hooks };
+  // don't leave an empty "hooks": {} behind
+  const { hooks: _, ...rest } = config;
+  return Object.keys(hooks).length ? { ...rest, hooks } : rest;
 }
 
 const TARGETS = {

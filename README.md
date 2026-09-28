@@ -239,13 +239,37 @@ You need Node 20 or newer, and a Typesafe API key for Jev.
 - **Without the key prompt:** leave it empty and set `TYPESAFE_API_KEY` in the environment, the project's `.env` or `~/.config/jevrail/.env`. With no key at all, the Jev checks are off, the local ones still work, and each session starts with a warning.
 - **No global command:** the plugin doesn't add a `jevrail` command to your shell, and doesn't need to, because its hooks run from the plugin's own folder. Inside Claude Code, `/jevrail:log` shows recent decisions. For `jevrail check` in a terminal, see [From npm](#from-npm-the-cli-or-hooks-without-the-plugin).
 
-**For a whole team**, run this once in the repo and commit `.claude/settings.json`:
+### For a whole team (project scope)
+
+Run this once in the repo, then commit `.claude/settings.json`:
 
 ```bash
 npx jevrail install claude --shared      # or: pnpm dlx jevrail install claude --shared
 ```
 
-It declares the marketplace and enables the plugin for the project. Per the Claude Code docs, a teammate who accepts the folder's trust prompt gets the marketplace registered and the plugin loaded with no separate install step, because the plugin lives at the marketplace's root. Each teammate still enters their own API key.
+It writes two entries:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "jevrail": { "source": { "source": "github", "repo": "ahaydarli/jevrail" } }
+  },
+  "enabledPlugins": { "jevrail@jevrail": true }
+}
+```
+
+You can also add these entries by hand.
+
+When a teammate opens the repo and accepts Claude Code's folder trust prompt:
+- the jevrail marketplace is fetched from GitHub,
+- the plugin loads with no install step, because it sits at the marketplace's root,
+- and its hooks run.
+
+This was tested with a fresh Claude Code config that had only the repo. Each teammate enters their own API key with `/plugin configure jevrail@jevrail`.
+
+Use this rather than Claude Code's own `claude plugin install jevrail@jevrail --scope project`. That command only writes `enabledPlugins`, and teammates who haven't added the jevrail marketplace then get a plugin Claude Code can't find.
+
+To opt out on your own machine, set `"jevrail@jevrail": false` in `.claude/settings.local.json`.
 
 ### From npm (the CLI, or hooks without the plugin)
 
