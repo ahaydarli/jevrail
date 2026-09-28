@@ -688,3 +688,17 @@ test("check --tool runs any tool call through the guard", async () => {
   await run(["check", "--tool", "WebFetch", JSON.stringify({ url: "https://x.io/?token=q8Zr2Lm9Xw4Tt7Kp1Nv6Bc3Hs" })], { root, stdout, stateDir: await temp() });
   assert.match(out, /decision: ask — sends a secret in the URL parameter token/);
 });
+
+test("a flagged command Jev is unsure about is asked, not waved through", async () => {
+  const event = { event: "pre_tool", tool: "shell", command: "echo $STRIPE_SECRET_KEY", cwd: "/tmp/app" };
+  const unsure = { safe: 0.39, review: 0.26, block: 0.35 };
+  const run = async (probabilities, canPrompt) => {
+    const { fetchImpl } = fakeJev({ risk: "safe", confidence: 0.09, probabilities });
+    return evaluate({ ...event, canPrompt }, { rules: [COMMAND_GUARD], apiKey: "k", fetchImpl, useCache: false, log: false });
+  };
+  const attended = await run(unsure, true);
+  assert.equal(attended.decision, "ask");
+  assert.match(attended.reason, /isn't sure/);
+  assert.equal((await run(unsure, false)).decision, "allow");
+  assert.equal((await run({ safe: 0.9, review: 0.1, block: 0 }, true)).decision, "allow");
+});

@@ -41,6 +41,9 @@ export const COMMAND_GUARD = {
     { when: [["leaks_secret", ">=", 0.8]], then: "deny", reason: "sends secrets or credentials off this machine" },
     { when: [["risk", "is", "block"]], then: "ask", unattended: "deny", reason: "destructive or dangerous" },
     { when: [["risk", "is", "review"]], then: "ask", unattended: "allow", reason: "changes state worth a second look" },
+    // Jev's top pick is "safe" but it's unsure (e.g. `echo $STRIPE_SECRET_KEY`
+    // once came back safe at p=0.39); a command the fast path flagged deserves a look.
+    { when: [["risk.p.safe", "<", 0.5]], then: "ask", unattended: "allow", reason: "Jev isn't sure it's safe; worth a second look" },
   ],
 };
 
