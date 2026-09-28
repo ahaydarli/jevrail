@@ -33,11 +33,28 @@ jobs:
             exit 1
           fi
 
+      # re-running a release, or tagging a version published by hand, must not fail
+      - name: Already on npm?
+        id: npm
+        run: |
+          spec="$(node -p 'const p = require("./package.json"); `${p.name}@${p.version}`')"
+          if npm view "$spec" version > /dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$spec is already on npm; skipping publish"
+          fi
+
       # trusted publishing needs npm 11.5.1 or later
-      - run: npm install -g npm@latest
-      - run: npm publish --access public
+      - if: steps.npm.outputs.published != 'true'
+        run: npm install -g npm@latest
+      - if: steps.npm.outputs.published != 'true'
+        run: npm publish --access public
 
       - name: GitHub release
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "::notice::release $GITHUB_REF_NAME already exists"
+          else
+            gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
