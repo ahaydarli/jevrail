@@ -1,6 +1,6 @@
 {
   "name": "jevrail",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A second look before your coding agent does something it can't take back. Jev-powered guard for Claude Code: commands, file edits, web fetches, MCP tools, prompt injection.",
   "keywords": [
     "ai-agents",
