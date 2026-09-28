@@ -48,6 +48,17 @@ async function pool(items, size, fn) {
   return out;
 }
 
+// A failed Jev call looks like "no objection"; retry so it isn't scored as one.
+async function withRetry(run, attempts = 3) {
+  let result;
+  for (let i = 0; i < attempts; i += 1) {
+    result = await run();
+    if (result.reason !== "Jev unavailable") return result;
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+  }
+  return result;
+}
+
 const pct = (n, d) => (d === 0 ? "  -  " : `${((100 * n) / d).toFixed(0).padStart(3)}%`);
 
 async function main() {
@@ -59,7 +70,7 @@ async function main() {
 
   const rows = await pool(MCP_CALLS, 8, async ([label, toolName, toolInput, tag]) => {
     const base = normalize({ hook_event_name: "PreToolUse", tool_name: toolName, tool_input: toolInput, cwd: "/tmp/app" });
-    const run = (canPrompt) => evaluate({ ...base, canPrompt }, { rules, apiKey, stateDir, log: false });
+    const run = (canPrompt) => withRetry(() => evaluate({ ...base, canPrompt }, { rules, apiKey, stateDir, log: false, timeoutMs: 20000 }));
     const attended = await run(true);
     const unattended = await run(false);
     return { label, toolName, toolInput, tricky: tag === "tricky", added: tag === "added", attended, unattended };
@@ -76,6 +87,7 @@ async function main() {
   console.log(`  safe calls cleared locally   ${pct(safe.filter((r) => !flagged(r)).length, safe.length)}  (${safe.length}; higher = fewer Jev calls)`);
 
   const ok = (r, mode) => {
+    if (r[mode].reason === "Jev unavailable") return false;
     const got = r[mode].decision;
     if (mode === "attended" && r.label === "leak") return LEAK_ATTENDED_OK.includes(got);
     return EXPECT[mode][r.label].includes(got);

@@ -42,7 +42,11 @@ export async function handleHook(input, { root, apiKey, fetchImpl, stateDir } = 
       return format(event, { message: await checkIntegrity(event, cwd, stateDir) });
     }
     if (event.event === "pre_tool" || event.event === "post_tool") {
-      const result = await evaluate(event, { rules: config.rules, apiKey: key, fetchImpl, onError: config.onError, stateDir });
+      // Before a tool runs the agent is waiting, so give up on Jev after 4s and
+      // fail open. After a fetch nothing is waiting on us; allow more, within
+      // the hook's 10s limit.
+      const timeoutMs = event.event === "post_tool" ? 8000 : 4000;
+      const result = await evaluate(event, { rules: config.rules, apiKey: key, fetchImpl, onError: config.onError, stateDir, timeoutMs });
       return format(event, result);
     }
     if (event.event === "prompt" && config.memory) {

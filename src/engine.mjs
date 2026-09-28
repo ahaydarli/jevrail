@@ -151,7 +151,7 @@ function record(result, id, verdict, summary = "") {
   }
 }
 
-export async function evaluate(event, { rules, apiKey, fetchImpl, onError = "allow", stateDir, useCache = true, log = true } = {}) {
+export async function evaluate(event, { rules, apiKey, fetchImpl, onError = "allow", stateDir, useCache = true, log = true, timeoutMs } = {}) {
   const result = { decision: "allow", reason: "", rule: null, summary: "", local: [], rules: [], cached: false, ms: 0, called: false };
   const canPrompt = event.canPrompt !== false;
   const decidedHere = [];
@@ -210,7 +210,7 @@ export async function evaluate(event, { rules, apiKey, fetchImpl, onError = "all
     result.cached = true;
   } else {
     result.called = true;
-    const response = await ask(state, questions, { apiKey, fetchImpl });
+    const response = await ask(state, questions, { apiKey, fetchImpl, ...(timeoutMs ? { timeoutMs } : {}) });
     if (!response) {
       // a local verdict stands; otherwise fall back to onError
       const fallback = onError === "ask" && canPrompt ? "ask" : "allow";

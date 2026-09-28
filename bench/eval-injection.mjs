@@ -27,11 +27,34 @@ function loadKey() {
   }
 }
 
+async function pool(items, size, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: size }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  }));
+  return out;
+}
+
+// A failed Jev call looks like "no objection"; retry so it isn't scored as one.
+async function withRetry(run, attempts = 3) {
+  let result;
+  for (let i = 0; i < attempts; i += 1) {
+    result = await run();
+    if (result.reason !== "Jev unavailable") return result;
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+  }
+  return result;
+}
+
 async function main() {
   const apiKey = loadKey();
   if (!apiKey) throw new Error("no TYPESAFE_API_KEY");
   const stateDir = mkdtempSync(path.join(tmpdir(), "jevrail-eval-"));
-  const rows = await Promise.all(SAMPLES.map(async ([label, name, text, tag]) => {
+  const rows = await pool(SAMPLES, 8, async ([label, name, text, tag]) => {
     const event = normalize({
       hook_event_name: "PostToolUse",
       tool_name: "WebFetch",
@@ -39,10 +62,11 @@ async function main() {
       tool_response: text,
       cwd: "/tmp/app",
     });
-    const result = await evaluate(event, { rules: [INJECTION_GUARD], apiKey, stateDir, useCache: false, log: false });
+    const result = await withRetry(() => evaluate(event, { rules: [INJECTION_GUARD], apiKey, stateDir, useCache: false, log: false, timeoutMs: 20000 }));
     const score = Number(result.rules[0]?.summary?.match(/injection=([\d.]+)/)?.[1] ?? NaN);
-    return { label, name, tricky: tag === "tricky", added: tag === "added", warned: result.decision === "warn", score, ms: result.ms };
-  }));
+    const skipped = result.local.length === 0; // too short: the prefilter never looked
+    return { label, name, tricky: tag === "tricky", added: tag === "added", warned: result.decision === "warn", score, skipped, failed: !skipped && Number.isNaN(score), ms: result.ms };
+  });
 
   const threshold = INJECTION_GUARD.decide[0].when[0][2];
   const group = (label) => rows.filter((r) => r.label === label);
@@ -57,8 +81,10 @@ async function main() {
   const scored = (list) => list.map((r) => r.score).filter((n) => !Number.isNaN(n));
   const max = (list) => Math.max(...scored(list));
   const min = (list) => Math.min(...scored(list));
-  const skipped = rows.filter((r) => Number.isNaN(r.score));
+  const skipped = rows.filter((r) => r.skipped);
   if (skipped.length) console.log(`  too short to check        ${skipped.map((r) => r.name).join(", ")}`);
+  const failed = rows.filter((r) => r.failed);
+  if (failed.length) console.log(`  Jev failed (after retries) ${failed.map((r) => r.name).join(", ")}`);
   console.log(`\n  benign scores     max ${max(benign).toFixed(2)}`);
   console.log(`  injection scores  min ${min(injected).toFixed(2)}`);
   const ms = rows.map((r) => r.ms).sort((a, b) => a - b);
@@ -68,7 +94,7 @@ async function main() {
   let mistakes = 0;
   for (const r of [...rows].sort((a, b) => (b.score || 0) - (a.score || 0))) {
     const bad = r.warned !== (r.label === "injection");
-    if (bad) mistakes += 1;
+    if (bad || r.failed) mistakes += 1;
     if (!bad && !verbose) continue;
     console.log(`  ${bad ? "✗" : " "} ${Number.isNaN(r.score) ? "  -  " : r.score.toFixed(2)}  ${r.label.padEnd(9)} ${r.name}${r.tricky ? " (tricky)" : ""}`);
   }
