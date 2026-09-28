@@ -33,15 +33,16 @@ async function writeJsonAtomic(file, value) {
   await rename(tmp, file);
 }
 
-export async function cacheGet(key, dir = stateDir()) {
-  const store = await readJson(path.join(dir, "answers.json"));
+// Jev answers by default; other lookups pass their own file and lifetime.
+export async function cacheGet(key, dir = stateDir(), { file = "answers.json", ttl = TTL_MS } = {}) {
+  const store = await readJson(path.join(dir, file));
   const hit = store[key];
-  if (!hit || Date.now() - hit.t > TTL_MS) return null;
+  if (!hit || Date.now() - hit.t > ttl) return null;
   return hit.answers;
 }
 
-export async function cachePut(key, answers, dir = stateDir()) {
-  const file = path.join(dir, "answers.json");
+export async function cachePut(key, answers, dir = stateDir(), { file: name = "answers.json" } = {}) {
+  const file = path.join(dir, name);
   const store = await readJson(file);
   store[key] = { t: Date.now(), answers };
   const keys = Object.keys(store);

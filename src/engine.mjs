@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { cacheGet, cacheKey, cachePut, logDecision } from "./cache.mjs";
 import { classifyFile, classifyTamper } from "./files.mjs";
+import { classifySupplyChain } from "./packages.mjs";
 import { classifyMcp, classifyOutbound, classifyUntrusted, responseText } from "./tools.mjs";
 import { ask, flatten, MODEL } from "./jev.mjs";
 import { scrubText } from "./memory.mjs";
@@ -24,6 +25,7 @@ export const PREFILTERS = {
   outbound: classifyOutbound,
   "risky-mcp": classifyMcp,
   untrusted: classifyUntrusted,
+  "supply-chain": classifySupplyChain,
 };
 
 function applies(rule, event) {
@@ -151,30 +153,37 @@ function record(result, id, verdict, summary = "") {
   }
 }
 
-export async function evaluate(event, { rules, apiKey, fetchImpl, onError = "allow", stateDir, useCache = true, log = true, timeoutMs } = {}) {
+// lookupFetch is for prefilters that look things up (package registries), kept
+// apart from fetchImpl, which only talks to Jev.
+export async function evaluate(event, { rules, apiKey, fetchImpl, onError = "allow", stateDir, useCache = true, log = true, timeoutMs, lookupFetch, allowPackages } = {}) {
   const result = { decision: "allow", reason: "", rule: null, summary: "", local: [], rules: [], cached: false, ms: 0, called: false };
   const canPrompt = event.canPrompt !== false;
   const decidedHere = [];
   const forJev = [];
+  const context = { fetchImpl: lookupFetch ?? globalThis.fetch, stateDir, allowPackages };
   for (const rule of rules) {
     if (!applies(rule, event)) continue;
     let reasons = [];
+    let facts = {};
     if (rule.prefilter) {
       const check = PREFILTERS[rule.prefilter];
-      const verdict = check ? check(event) : { look: true, reasons: [] };
+      const verdict = check ? await check(event, context) : { look: true, reasons: [] };
       result.local.push(...verdict.reasons);
       if (!verdict.look) continue;
       reasons = verdict.reasons;
+      facts = verdict.facts ?? {};
     }
-    if (Object.keys(rule.ask ?? {}).length === 0) decidedHere.push({ rule, reasons });
+    if (Object.keys(rule.ask ?? {}).length === 0) decidedHere.push({ rule, reasons, facts });
     else forJev.push(rule);
   }
   // rules that share a prefilter report the same reasons
   result.local = [...new Set(result.local)];
 
   // Rules without questions are decided here: no key, no network, no latency.
-  for (const { rule, reasons } of decidedHere) {
-    const verdict = decideRule(rule, {}, { canPrompt });
+  // A prefilter's facts (e.g. { malicious: true }) can be read by decide rows like answers.
+  for (const { rule, reasons, facts } of decidedHere) {
+    const answers = Object.fromEntries(Object.entries(facts).map(([name, value]) => [name, { value }]));
+    const verdict = decideRule(rule, answers, { canPrompt });
     record(result, rule.id, { ...verdict, reason: verdict.reason || reasons.join("; ") });
   }
   const done = async (extra = {}) => {

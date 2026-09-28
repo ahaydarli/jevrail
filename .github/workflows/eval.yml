@@ -1,7 +1,8 @@
 name: Eval
 
-# Scores the guards against the real Jev API on the labelled sets in bench/.
-# Catches drift when Jev's model changes. Needs the TYPESAFE_API_KEY secret.
+# Scores the guards against the real Jev API on the labelled sets in bench/,
+# and the supply-chain guard against live OSV, npm and PyPI. Catches drift when
+# Jev's model or those services change. Needs the TYPESAFE_API_KEY secret.
 
 on:
   workflow_dispatch:
@@ -38,6 +39,9 @@ jobs:
       - name: Injection
         if: ${{ !cancelled() }}
         run: node bench/eval-injection.mjs --strict | tee -a eval.txt
+      - name: Packages
+        if: ${{ !cancelled() }}
+        run: node bench/eval-packages.mjs --strict | tee -a eval.txt
       - name: Summary
         if: ${{ !cancelled() }}
         run: |

@@ -21,7 +21,7 @@ const NO_KEY =
   "jevrail: no TYPESAFE_API_KEY found, so the guard is off. Set it in the plugin's options (/plugin), export it, or add it to .env or ~/.config/jevrail/.env.";
 
 // Never throws: a broken hook must not stop the agent.
-export async function handleHook(input, { root, apiKey, fetchImpl, stateDir } = {}) {
+export async function handleHook(input, { root, apiKey, fetchImpl, stateDir, lookupFetch } = {}) {
   try {
     const event = normalize(input);
     const cwd = root ?? (event.projectDir || event.cwd || process.cwd());
@@ -46,7 +46,7 @@ export async function handleHook(input, { root, apiKey, fetchImpl, stateDir } = 
       // fail open. After a fetch nothing is waiting on us; allow more, within
       // the hook's 10s limit.
       const timeoutMs = event.event === "post_tool" ? 8000 : 4000;
-      const result = await evaluate(event, { rules: config.rules, apiKey: key, fetchImpl, onError: config.onError, stateDir, timeoutMs });
+      const result = await evaluate(event, { rules: config.rules, apiKey: key, fetchImpl, onError: config.onError, stateDir, timeoutMs, lookupFetch, allowPackages: config.allowPackages });
       return format(event, result);
     }
     if (event.event === "prompt" && config.memory) {

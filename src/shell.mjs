@@ -23,7 +23,8 @@ const SAFE_PROGRAMS = new Set([
   "flake8", "isort", "rubocop", "golangci-lint", "shellcheck", "hadolint", "turbo", "nx", "vite",
   "webpack", "esbuild", "rollup", "next", "nuxt", "astro", "storybook", "kill", "pkill", "killall",
   // tools with their own subcommand rules below
-  "git", "npm", "npx", "pnpm", "yarn", "bun", "bunx", "poetry", "gem", "twine", "docker",
+  // (what npx, bunx, uvx and pipx fetch is checked by the supply-chain guard)
+  "git", "npm", "npx", "pnpm", "yarn", "bun", "bunx", "uvx", "pipx", "poetry", "gem", "twine", "docker",
   "podman", "kubectl", "helm", "terraform", "tofu", "gh", "curl", "wget", "http", "https",
   "find", "rm", "rmdir", "mv", "cp", "ln", "chmod", "chown", "chgrp", "env", "psql", "mysql",
   "sqlite3", "mongosh", "mongo", "redis-cli",

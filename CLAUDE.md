@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-jevrail is a hook runtime that guards a coding agent. It covers shell commands, file edits, web fetches and MCP tool calls. It warns about prompt injection in fetched content and notices when its own settings are tampered with. Judgement calls go to Jev (Typesafe's classifier, `https://api.typesafe.ai/v1/systemone`); clear-cut cases are decided locally. Focus is Claude Code first, shipped as a plugin from this repo. Other harnesses (Codex, Copilot, Cursor, Gemini) come later.
+jevrail is a hook runtime that guards a coding agent. It covers shell commands, file edits, web fetches, MCP tool calls, and package installs / download-and-run (supply chain). It warns about prompt injection in fetched content and notices when its own settings are tampered with. Judgement calls go to Jev (Typesafe's classifier, `https://api.typesafe.ai/v1/systemone`); clear-cut cases are decided locally. Focus is Claude Code first, shipped as a plugin from this repo. Other harnesses (Codex, Copilot, Cursor, Gemini) come later.
 
 ## Commands
 
@@ -18,6 +18,7 @@ node bin/jevrail.mjs log                                       # recent decision
 node bench/eval.mjs            # command guard vs bench/commands.mjs
 node bench/eval-mcp.mjs        # MCP + outbound guards vs bench/mcp.mjs
 node bench/eval-injection.mjs  # injection guard vs bench/injection.mjs
+node bench/eval-packages.mjs   # supply-chain guard vs live OSV/npm/PyPI (no Jev key needed)
 pnpm bench                     # Jev latency (warm + cold spawns)
 claude plugin validate .       # validate .claude-plugin/ manifests
 ```
@@ -62,7 +63,10 @@ This adapter is also used for Codex and Copilot payloads for now.
    - `risky-shell`: `src/shell.mjs`
    - `risky-file`, `tamper`: `src/files.mjs`
    - `outbound`, `risky-mcp`, `untrusted`: `src/tools.mjs`
-3. Rules with no `ask` questions are **decided locally**, with no key or network needed. The reason defaults to the prefilter's reasons.
+   - `supply-chain`: `src/packages.mjs`
+
+   Prefilters may be async and get a context: `{ fetchImpl: lookupFetch, stateDir, allowPackages }`. `lookupFetch` is kept apart from `fetchImpl`, which only talks to Jev.
+3. Rules with no `ask` questions are **decided locally**, with no Jev call. A prefilter can return `facts` (e.g. `{ malicious: true }`) that `decide` rows read like answers. The reason defaults to the prefilter's reasons.
 4. The rest share **one** Jev call, keyed `r<index>_<name>`, with a 7-day cache in `src/cache.mjs`.
 5. `decideRule` takes the first matching row. The strictest verdict wins: `deny` > `ask` > `warn` > `allow`.
 
@@ -87,8 +91,16 @@ Built-in rules live in `src/rules/builtin.mjs`, and the rule format is documente
 | `outbound-guard` | local | web, mcp |
 | `mcp-guard` | Jev | mcp; reads `risk.p.block` and `risk.p.safe`, not the top pick |
 | `injection-guard` | Jev | post_tool on web, mcp, shell; `warn` only |
+| `supply-chain-guard` | local + lookups | shell; facts `malicious` (deny), `suspicious` and `remote_code` (ask, deny unattended) |
 
 Custom rules come from `.jevrail/config.json` (`src/config.mjs loadConfig`). A custom rule with a built-in's `id` replaces that built-in, and `disable` removes rules or `memory`.
+
+The supply-chain guard lives in `src/packages.mjs`:
+- `parseInstalls` finds package names in npm, pnpm, yarn, bun, npx, bunx, pip, uv, uvx, pipx and poetry commands.
+- `runsRemoteCode` spots download-and-run. It ignores quoted text, except what `sh -c` runs or `$(…)`.
+- `lookup` asks OSV (`/v1/querybatch`: `MAL-` ids mean malware; never match on summaries, since CVE text says "malicious" too) and the npm or PyPI registries for existence, age and weekly downloads. Answers are cached 12h in `packages.json` in the state dir. Only complete answers are cached, and failures fail open.
+- A typo-squat warning (`typoOf`, one edit from a name in `POPULAR`) needs registry data and fewer than 100k weekly downloads, because `preact` is one letter from `react`.
+- Scopes `.npmrc` routes to a private registry, and `allowPackages` from config, are skipped.
 
 Credential detection is in `src/secrets.mjs`. It covers known token formats, plus random-looking values assigned to secret-ish names, plus URL parameters. It aims for precision, since every hit becomes a prompt. Placeholders, env lookups and presigned-URL signature parameters are excluded.
 
@@ -136,6 +148,7 @@ Every Jev threshold was tuned on a labelled set. The tuning notes are in comment
 | `command-guard` and the `src/shell.mjs` fast path | `bench/commands.mjs` | `bench/eval.mjs` |
 | `mcp-guard`, `outbound-guard` and `classifyMcp` | `bench/mcp.mjs` | `bench/eval-mcp.mjs` |
 | `injection-guard` and `classifyUntrusted` | `bench/injection.mjs` | `bench/eval-injection.mjs` |
+| `supply-chain-guard` (live data, no Jev) | cases inside the script | `bench/eval-packages.mjs` |
 
 After changing a rule, a prefilter or a question's wording:
 1. Rerun the matching eval.
@@ -154,7 +167,7 @@ In tests, `fakeJev()` answers by question-key suffix: `_risk` (with optional `pr
   - `pnpm test` on Node 20, 22 and 24 on Linux, plus Node 24 on macOS
   - `claude plugin validate .`
   - `npm pack --dry-run`
-- **`.github/workflows/eval.yml`** runs by hand and every Monday. It runs the three evals with `--strict`, which exits 1 on any mistake, against the real Jev API. It needs a `TYPESAFE_API_KEY` repository secret.
+- **`.github/workflows/eval.yml`** runs by hand and every Monday. It runs the four evals with `--strict`, which exits 1 on any mistake, against the real Jev API and live OSV, npm and PyPI. It needs a `TYPESAFE_API_KEY` repository secret.
 - **`.github/workflows/release.yml`** runs on a `v*` tag. It checks that the tag equals `package.json`'s version, runs the tests, does `npm publish` with npm trusted publishing (OIDC, no token, provenance included), then creates a GitHub release.
 
 Releasing a version:

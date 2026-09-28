@@ -33,7 +33,7 @@ async function readStdin() {
   return Buffer.concat(chunks).toString("utf8").trim();
 }
 
-export async function run(argv, { root = process.cwd(), stdout = process.stdout, fetchImpl, stateDir } = {}) {
+export async function run(argv, { root = process.cwd(), stdout = process.stdout, fetchImpl, stateDir, lookupFetch } = {}) {
   const flags = new Set(argv.filter((arg) => arg.startsWith("--")));
   const args = argv.filter((arg) => !arg.startsWith("--"));
   const [command, ...rest] = args;
@@ -96,7 +96,7 @@ export async function run(argv, { root = process.cwd(), stdout = process.stdout,
     }
     event = { ...event, projectDir: root, canPrompt: !unattended };
     const config = loadConfig(root);
-    const result = await evaluate(event, { rules: config.rules, apiKey: loadKey(root), fetchImpl, stateDir, log: false });
+    const result = await evaluate(event, { rules: config.rules, apiKey: loadKey(root), fetchImpl, stateDir, log: false, lookupFetch, allowPackages: config.allowPackages });
     stdout.write(`local:    ${result.local.length ? `look (${result.local.join("; ")})` : "nothing flagged, Jev not called"}\n`);
     if (result.called || result.cached) {
       // with several rules, show every Jev rule's answers, not just the winner's

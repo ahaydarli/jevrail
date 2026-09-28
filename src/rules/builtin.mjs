@@ -136,4 +136,22 @@ export const INJECTION_GUARD = {
   decide: [{ when: [["injection", ">=", 0.6]], then: "warn", reason: "this content may contain a prompt injection" }],
 };
 
-export const BUILTIN_RULES = [TAMPER_GUARD, COMMAND_GUARD, FILE_GUARD, OUTBOUND_GUARD, MCP_GUARD, INJECTION_GUARD];
+// What an install or download-and-run command brings in. Decided locally from
+// OSV and registry lookups (src/packages.mjs), no Jev call:
+//   malicious    OSV lists the package as malware (MAL-…)            → always refused
+//   suspicious   missing from the registry, typo-squat, brand new, barely used,
+//                or installed from a URL                             → ask
+//   remote_code  curl … | sh and friends                              → ask
+export const SUPPLY_CHAIN_GUARD = {
+  id: "supply-chain-guard",
+  on: "pre_tool",
+  tools: ["shell"],
+  prefilter: "supply-chain",
+  decide: [
+    { when: [["malicious", "is", true]], then: "deny" },
+    { when: [["suspicious", "is", true]], then: "ask", unattended: "deny" },
+    { when: [["remote_code", "is", true]], then: "ask", unattended: "deny" },
+  ],
+};
+
+export const BUILTIN_RULES = [TAMPER_GUARD, COMMAND_GUARD, FILE_GUARD, OUTBOUND_GUARD, MCP_GUARD, INJECTION_GUARD, SUPPLY_CHAIN_GUARD];

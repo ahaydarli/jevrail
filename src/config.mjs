@@ -58,6 +58,8 @@ export function loadConfig(root) {
   ].filter((rule) => !disabled.has(rule.id));
   return {
     rules,
+    // package names or "prefix*" patterns the supply-chain guard trusts (e.g. "@acme/*")
+    allowPackages: Array.isArray(raw.allowPackages) ? raw.allowPackages.filter((p) => typeof p === "string") : [],
     onError: raw.onError === "ask" ? "ask" : "allow",
     memory: !disabled.has("memory"),
   };

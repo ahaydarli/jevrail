@@ -44,7 +44,7 @@
   "scripts": {
     "test": "node --test",
     "bench": "node bench/latency.mjs",
-    "eval": "node bench/eval.mjs && node bench/eval-mcp.mjs && node bench/eval-injection.mjs",
+    "eval": "node bench/eval.mjs && node bench/eval-mcp.mjs && node bench/eval-injection.mjs && node bench/eval-packages.mjs",
     "prepublishOnly": "node --test"
   }
 }
