@@ -1,0 +1,7 @@
+.env
+.env.*
+node_modules/
+bench/eval-results.json
+.DS_Store
+!.env.example
+*.tgz

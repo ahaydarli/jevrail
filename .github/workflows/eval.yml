@@ -1,0 +1,48 @@
+name: Eval
+
+# Scores the guards against the real Jev API on the labelled sets in bench/.
+# Catches drift when Jev's model changes. Needs the TYPESAFE_API_KEY secret.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash # -eo pipefail, so `| tee` keeps a failing exit code
+    env:
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Check the key is set
+        run: |
+          if [ -z "$TYPESAFE_API_KEY" ]; then
+            echo "::error::add a TYPESAFE_API_KEY repository secret to run the evals"
+            exit 1
+          fi
+      - name: Commands
+        run: node bench/eval.mjs --strict | tee -a eval.txt
+      - name: MCP
+        if: ${{ !cancelled() }}
+        run: node bench/eval-mcp.mjs --strict | tee -a eval.txt
+      - name: Injection
+        if: ${{ !cancelled() }}
+        run: node bench/eval-injection.mjs --strict | tee -a eval.txt
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo '```'
+            cat eval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

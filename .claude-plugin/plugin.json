@@ -1,0 +1,25 @@
+{
+  "name": "jevrail",
+  "description": "A second look before your coding agent does something it can't take back: guards shell commands, file edits, web fetches and MCP tools, flags prompt injection, and notices when it gets switched off.",
+  "author": {
+    "name": "Ali",
+    "url": "https://github.com/ahaydarli"
+  },
+  "repository": "https://github.com/ahaydarli/jevrail",
+  "license": "MIT",
+  "keywords": [
+    "guardrails",
+    "hooks",
+    "safety",
+    "jev",
+    "typesafe"
+  ],
+  "userConfig": {
+    "typesafe_api_key": {
+      "type": "string",
+      "title": "Typesafe API key",
+      "description": "Key for Jev (typesafe.ai). Leave empty to use TYPESAFE_API_KEY from the environment, the project's .env or ~/.config/jevrail/.env.",
+      "sensitive": true
+    }
+  }
+}

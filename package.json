@@ -1,0 +1,50 @@
+{
+  "name": "jevrail",
+  "version": "0.1.0",
+  "description": "A second look before your coding agent does something it can't take back. Jev-powered guard for Claude Code: commands, file edits, web fetches, MCP tools, prompt injection.",
+  "keywords": [
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "guardrails",
+    "hooks",
+    "jev",
+    "mcp",
+    "prompt-injection",
+    "security",
+    "typesafe"
+  ],
+  "homepage": "https://github.com/ahaydarli/jevrail#readme",
+  "bugs": {
+    "url": "https://github.com/ahaydarli/jevrail/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahaydarli/jevrail.git"
+  },
+  "license": "MIT",
+  "author": "Ali (https://github.com/ahaydarli)",
+  "type": "module",
+  "bin": {
+    "jevrail": "./bin/jevrail.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    ".claude-plugin",
+    "hooks",
+    "commands",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.7.1",
+  "scripts": {
+    "test": "node --test",
+    "bench": "node bench/latency.mjs",
+    "eval": "node bench/eval.mjs && node bench/eval-mcp.mjs && node bench/eval-injection.mjs",
+    "prepublishOnly": "node --test"
+  }
+}

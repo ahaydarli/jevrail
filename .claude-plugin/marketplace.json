@@ -1,0 +1,15 @@
+{
+  "name": "jevrail",
+  "description": "jevrail, Jev-powered guardrails for AI coding agents",
+  "owner": {
+    "name": "Ali",
+    "url": "https://github.com/ahaydarli"
+  },
+  "plugins": [
+    {
+      "name": "jevrail",
+      "source": "./",
+      "description": "Guards shell commands, file edits, web fetches and MCP tools with Jev; flags prompt injection."
+    }
+  ]
+}
